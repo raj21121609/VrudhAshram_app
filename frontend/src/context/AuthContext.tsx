@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../services/supabase';
 import { Session, User } from '@supabase/supabase-js';
+import { registerForPushNotificationsAsync } from '../services/notifications';
 
 type AuthContextType = {
   session: Session | null;
@@ -48,9 +49,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
-      // Assuming a profiles table holds the user role
+      // Query public.users table for the user role
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('role')
         .eq('id', userId)
         .single();
@@ -60,6 +61,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       setRole(data?.role || null);
+
+      // Fetch and save Push Token
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        await supabase
+          .from('users')
+          .update({ push_token: token })
+          .eq('id', userId);
+      }
+      
     } catch (err) {
       console.error(err);
     } finally {
